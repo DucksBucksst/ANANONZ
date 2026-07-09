@@ -26,14 +26,25 @@ def floor(collection_name: str | None = None):
     if not collection:
         return jsonify({"error": "collection query parameter is required"}), 400
 
+    # Allow optional fallback to history via ?fallback=true
+    fallback = str(request.args.get("fallback", "false")).lower() in ("1", "true", "yes")
+
     result = api.get_floor_by_collection(collection)
-    return jsonify(
-        {
-            "collection": collection,
-            "floor": str(result),
-            "data": result.data,
-        }
-    )
+
+    response = {
+        "collection": collection,
+        "floor": str(result),
+        "data": result.data,
+    }
+
+    if fallback:
+        # Explicitly include history-derived prices
+        payload = api._request_json("GET", "/history/collection-offers")
+        items = api._extract_listings(payload)
+        history_prices = api._extract_market_prices_from_history(items, collection)
+        response["history_prices"] = history_prices
+
+    return jsonify(response)
 
 
 @app.route("/listings", methods=["GET"])
@@ -55,6 +66,19 @@ def listings(collection_name: str | None = None):
             "rows": rows,
         }
     )
+
+
+@app.route("/history/<collection_name>", methods=["GET"])
+def history(collection_name: str):
+    """Return raw history entries and extracted history prices for the collection."""
+    collection = _normalize_collection_name(collection_name)
+    payload = api._request_json("GET", "/history/collection-offers")
+    items = api._extract_listings(payload)
+    # Extract structured history prices
+    history_prices = api._extract_market_prices_from_history(items, collection)
+    # Raw entries matching the collection name
+    raw_entries = [it for it in items if isinstance(it, dict) and str(it.get("collectionName", "")).lower() == collection.lower()]
+    return jsonify({"collection": collection, "prices": history_prices, "raw": raw_entries})
 
 
 if __name__ == "__main__":
