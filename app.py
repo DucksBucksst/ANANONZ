@@ -15,9 +15,14 @@ def health():
     return jsonify({"status": "ok"})
 
 
+def _normalize_collection_name(collection_name: str) -> str:
+    return collection_name.replace("-", " ").strip()
+
+
 @app.route("/floor", methods=["GET"])
-def floor():
-    collection = request.args.get("collection")
+@app.route("/floor/<collection_name>", methods=["GET"])
+def floor(collection_name: str | None = None):
+    collection = collection_name and _normalize_collection_name(collection_name) or request.args.get("collection")
     if not collection:
         return jsonify({"error": "collection query parameter is required"}), 400
 
@@ -32,8 +37,9 @@ def floor():
 
 
 @app.route("/listings", methods=["GET"])
-def listings():
-    collection = request.args.get("collection")
+@app.route("/listings/<collection_name>", methods=["GET"])
+def listings(collection_name: str | None = None):
+    collection = collection_name and _normalize_collection_name(collection_name) or request.args.get("collection")
     if not collection:
         return jsonify({"error": "collection query parameter is required"}), 400
 
