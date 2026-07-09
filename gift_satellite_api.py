@@ -177,7 +177,11 @@ class GiftSatelliteAPI:
                     return payload
                 if payload.get("message") and payload.get("statusCode") == 400:
                     continue
-                return payload
+                if payload.get("items") is not None or payload.get("results") is not None or payload.get("listings") is not None or payload.get("data") is not None or payload.get("offers") is not None or payload.get("records") is not None:
+                    continue
+                if payload:
+                    return payload
+                continue
             return payload
         return None
 
@@ -366,18 +370,30 @@ class GiftSatelliteAPI:
             return []
         candidates: List[str] = [raw]
         lowered = raw.lower()
-        candidates.append(lowered)
-        candidates.append(raw.replace(" ", "-"))
-        candidates.append(raw.replace(" ", "-").lower())
-        candidates.append(raw.replace(" ", ""))
-        candidates.append(raw.replace(" ", "").lower())
-        candidates.append(re.sub(r"\bday\b", "Day", raw))
-        candidates.append(re.sub(r"\bday\b", "Day", raw).replace(" ", "-"))
-        candidates.append(re.sub(r"\bday\b", "Day", lowered))
-        candidates.append(re.sub(r"\bday\b", "Day", lowered).replace(" ", "-"))
-        candidates.append(raw.replace("-", " "))
-        candidates.append(raw.replace("-", " ").replace("day", "Day"))
-        candidates.append(raw.replace("-", " ").replace("day", "Day").replace(" ", "-"))
+        title = raw.title()
+        variants = [
+            raw,
+            lowered,
+            title,
+            raw.replace(" ", "-"),
+            raw.replace(" ", "-").lower(),
+            title.replace(" ", "-"),
+            raw.replace(" ", ""),
+            raw.replace(" ", "").lower(),
+            title.replace(" ", ""),
+            raw.replace("-", " "),
+            raw.replace("-", " ").replace("day", "Day"),
+            raw.replace("-", " ").replace("day", "Day").replace(" ", "-"),
+            raw.replace("-", " ").title(),
+            raw.replace("-", " ").title().replace(" ", "-"),
+        ]
+        for variant in variants:
+            if variant:
+                candidates.append(variant)
+        day_variants = [re.sub(r"\bday\b", "Day", variant) for variant in variants]
+        for variant in day_variants:
+            if variant:
+                candidates.append(variant)
         slug = re.sub(r"[^a-z0-9]+", "-", lowered).strip("-")
         if slug:
             candidates.append(slug)

@@ -85,6 +85,14 @@ class GiftSatelliteAPITests(unittest.TestCase):
         self.assertIn("PORTALS: 5.74g", str(result))
         self.assertTrue(str(result).startswith("TELEGRAM: 0g |"))
 
+    def test_floor_by_collection_tries_title_case_collection_variant(self):
+        api = GiftSatelliteAPI(session=DummySession({
+            "/search/tg/Artisan%20Brick": {"items": [{"marketplace": "telegram", "normalizedPrice": 11.0}]},
+            "default": {"items": []},
+        }))
+        result = api.get_floor_by_collection("artisan brick")
+        self.assertIn("TELEGRAM: 11g", str(result))
+
     def test_listings_grouping(self):
         api = GiftSatelliteAPI(session=DummySession({
             "/search/tg/Collection": {"items": [{"marketplace": "telegram", "normalizedPrice": 1.0, "name": "TG"}]},

@@ -16,7 +16,8 @@ def health():
 
 
 def _normalize_collection_name(collection_name: str) -> str:
-    return collection_name.replace("-", " ").strip()
+    text = str(collection_name or "").replace("-", " ").strip()
+    return text.title() if text else ""
 
 
 @app.route("/floor", methods=["GET"])
