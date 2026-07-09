@@ -133,14 +133,49 @@ print(result)
 - Import `GiftSatelliteAPI` directly from `gift_satellite_api.py` in your project root.
 - For production usage, keep `GIFT_SATELLITE_TOKEN` secret and do not commit it.
 
-## Deploying to Railway / cloud
+## Deploying to Railway
 
-If you deploy this service to Railway, set the secret `GIFT_SATELLITE_TOKEN` in your Railway project.
-Then your app can instantiate the client without passing the token in code:
+This repository is now Railway-ready.
 
-```python
-from gift_satellite_api import GiftSatelliteAPI
-api = GiftSatelliteAPI()
+1. Add a Railway secret named `GIFT_SATELLITE_TOKEN`.
+2. Add a Railway secret named `GIFT_SATELLITE_BASE_URL` only if you use a custom API endpoint.
+3. Ensure `Procfile` exists with:
+
+```text
+web: gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
-If your live environment does not use a `.env` file, the environment variable is enough.
+4. Ensure `requirements.txt` contains:
+
+```text
+flask
+flask-cors
+gunicorn
+requests
+```
+
+5. Deploy the repository to Railway.
+
+6. Use the `PORT` environment variable automatically provided by Railway.
+
+### Example Railway health check
+
+```bash
+curl https://<your-app>.railway.app/health
+```
+
+### Example API calls
+
+```bash
+curl "https://<your-app>.railway.app/floor?collection=B-Day%20Candle"
+curl "https://<your-app>.railway.app/listings?collection=Plush%20Pepe"
+```
+
+### Troubleshooting 502
+
+If Railway returns `502`, check these points:
+- `PORT` must be read from the environment in `app.py`.
+- `Procfile` must contain `web: python app.py`.
+- `requirements.txt` must list `flask` and `flask-cors`.
+- `GIFT_SATELLITE_TOKEN` must be set in Railway secrets.
+- Inspect Railway deployment logs for Python import errors or missing dependencies.
