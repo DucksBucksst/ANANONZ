@@ -111,6 +111,36 @@ print(result)
 - `get_listings(collection, model=None, backdrop=None)` — readable listing summary
 - `get_listings_dto(collection, model=None, backdrop=None)` — full structured output
 
+## Lovable / AI-agent usage guide
+
+If your Lovable mini-app or another AI agent needs to search listings, the recommended mapping is:
+
+- Collection only: "Artisan Brick"
+- Collection + model: "Artisan Brick + Cash Roll"
+- Collection + model + backdrop: "Artisan Brick + Cash Roll + Moonstone"
+
+The API should translate those requests into these endpoint calls:
+
+```bash
+curl "https://<your-app>.railway.app/listings/artisan-brick"
+curl "https://<your-app>.railway.app/listings/artisan-brick?model=Cash%20Roll"
+curl "https://<your-app>.railway.app/listings/artisan-brick?model=Cash%20Roll&backdrop=Moonstone"
+```
+
+For floor price queries, use:
+
+```bash
+curl "https://<your-app>.railway.app/floor/artisan-brick"
+```
+
+Recommended rules for the mini-app:
+
+- `collection` is required.
+- `model` is optional and should be passed as the `model` query parameter.
+- `backdrop` is optional and should be passed as the `backdrop` query parameter.
+- Collection names may be passed with spaces or hyphens, for example `Artisan Brick` or `artisan-brick`.
+- Use `/listings/<collection>` when you need full rows and `/floor/<collection>` when you need a market-summary floor price.
+
 ## Result format
 
 `get_listings_dto()` returns items with the following fields:
