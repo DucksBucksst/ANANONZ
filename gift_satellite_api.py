@@ -68,10 +68,14 @@ class GiftSatelliteAPI:
         market_prices: Dict[str, float] = {}
 
         for market in self._market_routes():
-            output_name = self._market_output_name(market["path"])
+            output_name = market.get("output_name") or self._market_output_name(market["path"])
             payload = self._search_listings(collection=collection, market=market["path"])
             items = self._extract_listings(payload)
-            prices = [float(self._extract_price(item)) for item in items if self._extract_price(item) is not None]
+            prices = [
+                float(self._extract_price(item))
+                for item in items
+                if self._matches_market_route(item, market["path"]) and self._extract_price(item) is not None
+            ]
             if not prices:
                 continue
             min_price = min(prices)
@@ -87,7 +91,7 @@ class GiftSatelliteAPI:
 
         result = " | ".join(
             f"{market}: {self._format_price(market_prices.get(market, 0))}g"
-            for market in ["MRKT", "PORTALS", "TONNEL", "GETGEMS"]
+            for market in ["TELEGRAM", "MRKT", "PORTALS", "TONNEL", "GETGEMS"]
         )
         return FormattedResult(result, prices=market_prices, collection=collection)
 
@@ -286,6 +290,25 @@ class GiftSatelliteAPI:
                 return True
         return False
 
+    def _matches_market_route(self, item: Any, market_path: str) -> bool:
+        if not isinstance(item, dict):
+            return False
+        marketplace = self._find_marketplace(item)
+        if not marketplace:
+            return False
+        normalized = str(marketplace).strip().lower()
+        if market_path == "tg":
+            return normalized in {"telegram", "tg"}
+        if market_path == "portals":
+            return normalized in {"portal", "portals"}
+        if market_path == "mrkt":
+            return normalized in {"mrkt", "market"}
+        if market_path == "tonnel":
+            return normalized == "tonnel"
+        if market_path == "getgems":
+            return normalized in {"getgems", "getgem", "get-gems"}
+        return False
+
     def _extract_price(self, item: Any) -> Optional[float]:
         if not isinstance(item, dict):
             return None
@@ -371,7 +394,7 @@ class GiftSatelliteAPI:
     def _market_output_name(value: str) -> str:
         normalized = str(value).strip().lower()
         if normalized in {"telegram", "tg"}:
-            return "MRKT"
+            return "TELEGRAM"
         if normalized in {"portal", "portals"}:
             return "PORTALS"
         if normalized in {"mrkt", "market"}:
@@ -404,11 +427,11 @@ class GiftSatelliteAPI:
     @staticmethod
     def _market_routes() -> List[Dict[str, str]]:
         return [
-            {"path": "tg", "output_name": "Telegram"},
-            {"path": "portals", "output_name": "Portal"},
-            {"path": "mrkt", "output_name": "Mrkt"},
-            {"path": "tonnel", "output_name": "Tonnel"},
-            {"path": "getgems", "output_name": "Getgems"},
+            {"path": "tg", "output_name": "TELEGRAM"},
+            {"path": "portals", "output_name": "PORTALS"},
+            {"path": "mrkt", "output_name": "MRKT"},
+            {"path": "tonnel", "output_name": "TONNEL"},
+            {"path": "getgems", "output_name": "GETGEMS"},
         ]
 
 

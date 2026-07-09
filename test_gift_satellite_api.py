@@ -22,6 +22,14 @@ class DummySession:
 
     def get(self, url, headers=None, params=None, timeout=None):
         self.calls.append((url, headers, params, timeout))
+        if isinstance(self.responses, dict):
+            for key, payload in self.responses.items():
+                if key in url:
+                    return DummyResponse(payload)
+            if "default" in self.responses:
+                return DummyResponse(self.responses["default"])
+            return DummyResponse([])
+
         index = len(self.calls) - 1
         if index < len(self.responses):
             payload = self.responses[index]
@@ -54,7 +62,7 @@ class GiftSatelliteAPITests(unittest.TestCase):
         }
         api = GiftSatelliteAPI(session=DummySession([payload]))
         result = api.get_floor_by_collection("Collection")
-        self.assertEqual(str(result), "MRKT: 7g | PORTALS: 8g | TONNEL: 0g | GETGEMS: 6.5g")
+        self.assertEqual(str(result), "TELEGRAM: 0g | MRKT: 7g | PORTALS: 8g | TONNEL: 0g | GETGEMS: 6.5g")
 
     def test_floor_by_collection_uses_market_routes_for_output(self):
         history_payload = []
@@ -67,7 +75,7 @@ class GiftSatelliteAPITests(unittest.TestCase):
         ]
         api = GiftSatelliteAPI(session=DummySession([history_payload, *market_payloads]))
         result = api.get_floor_by_collection("Collection")
-        self.assertEqual(str(result), "MRKT: 2g | PORTALS: 3g | TONNEL: 1g | GETGEMS: 0.5g")
+        self.assertEqual(str(result), "TELEGRAM: 4g | MRKT: 2g | PORTALS: 3g | TONNEL: 1g | GETGEMS: 0.5g")
 
     def test_floor_by_collection_prefers_search_results_over_history(self):
         history_payload = [{"collectionName": "Collection", "portals": {"price": 5.32}}]
@@ -75,35 +83,38 @@ class GiftSatelliteAPITests(unittest.TestCase):
         api = GiftSatelliteAPI(session=DummySession([history_payload, search_payload]))
         result = api.get_floor_by_collection("Collection")
         self.assertIn("PORTALS: 5.74g", str(result))
+        self.assertTrue(str(result).startswith("TELEGRAM: 0g |"))
 
     def test_listings_grouping(self):
-        payload = {
-            "items": [
-                {"marketplace": "Portals", "name": "A"},
-                {"marketplace": "mrkt", "name": "B"},
-                {"marketplace": "tonnel", "name": "C"},
-                {"marketplace": "getgems", "name": "D"},
-            ]
-        }
-        api = GiftSatelliteAPI(session=DummySession([payload]))
+        api = GiftSatelliteAPI(session=DummySession({
+            "/search/tg/Collection": {"items": [{"marketplace": "telegram", "normalizedPrice": 1.0, "name": "TG"}]},
+            "/search/portals/Collection": {"items": [{"marketplace": "Portals", "normalizedPrice": 2.0, "name": "A"}]},
+            "/search/mrkt/Collection": {"items": [{"marketplace": "Mrkt", "normalizedPrice": 3.0, "name": "B"}]},
+            "/search/tonnel/Collection": {"items": [{"marketplace": "Tonnel", "normalizedPrice": 4.0, "name": "C"}]},
+            "/search/getgems/Collection": {"items": [{"marketplace": "Getgems", "normalizedPrice": 5.0, "name": "D"}]},
+        }))
         result = api.get_listings("Collection")
-        self.assertIn("Found 4 listings", str(result))
+        self.assertIn("Found 5 listings", str(result))
+        self.assertIn("Telegram: 1", str(result))
         self.assertIn("Portal: 1", str(result))
         self.assertIn("Mrkt: 1", str(result))
         self.assertIn("Tonnel: 1", str(result))
+        self.assertIn("Getgems: 1", str(result))
 
     def test_listings_scared_cat_azuki_siam(self):
-        payload = {
-            "items": [
-                {
-                    "marketplace": "Portals",
-                    "normalizedPrice": 4.5,
-                    "model": "Azuki Siam",
-                    "slug": "scared-cat-azuki-siam",
-                }
-            ]
-        }
-        api = GiftSatelliteAPI(session=DummySession([payload]))
+        api = GiftSatelliteAPI(session=DummySession({
+            "/search/portals/Scared%20Cat": {
+                "items": [
+                    {
+                        "marketplace": "Portals",
+                        "normalizedPrice": 4.5,
+                        "model": "Azuki Siam",
+                        "slug": "scared-cat-azuki-siam",
+                    }
+                ]
+            },
+            "default": {"items": []},
+        }))
         result = api.get_listings("Scared Cat", model="Azuki Siam")
         self.assertIn("Found 1 listings", str(result))
         self.assertEqual(result.data["collection"], "Scared Cat")
@@ -111,17 +122,19 @@ class GiftSatelliteAPITests(unittest.TestCase):
         self.assertEqual(result.data["total"], 1)
 
     def test_listings_voodoo_doll_disco_doll(self):
-        payload = {
-            "items": [
-                {
-                    "marketplace": "Mrkt",
-                    "normalizedPrice": 3.2,
-                    "model": "Disco Doll",
-                    "slug": "voodoo-doll-disco-doll",
-                }
-            ]
-        }
-        api = GiftSatelliteAPI(session=DummySession([payload]))
+        api = GiftSatelliteAPI(session=DummySession({
+            "/search/mrkt/Voodoo%20Doll": {
+                "items": [
+                    {
+                        "marketplace": "Mrkt",
+                        "normalizedPrice": 3.2,
+                        "model": "Disco Doll",
+                        "slug": "voodoo-doll-disco-doll",
+                    }
+                ]
+            },
+            "default": {"items": []},
+        }))
         dto = api.get_listings_dto("Voodoo Doll", model="Disco Doll")
         self.assertEqual(len(dto), 1)
         self.assertEqual(dto[0]["marketplace"], "Mrkt")

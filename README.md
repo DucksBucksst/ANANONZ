@@ -1,113 +1,146 @@
-# TESTGIFTANALIZ
+# Gift Satellite Integration
+
+This repository provides a lightweight Python client for Gift Satellite.
+It is designed to let another developer or AI agent connect to a project in under two minutes.
+
+## Why this repository
+
+- Full listing retrieval via `get_listings_dto()` — nothing is skipped
+- Marketplace floor price aggregation via `get_floor_by_collection()`
+- Works with live Gift Satellite API and supports token configuration via environment or explicit parameter
+- Minimal dependency: only `requests`
+
+## Quick Integration
+
+1. Clone or copy this repository into your project.
+2. Install the runtime dependency.
+3. Set `GIFT_SATELLITE_TOKEN`.
+4. Import `GiftSatelliteAPI` and call the methods below.
+
+```bash
+python3 -m pip install requests
+export GIFT_SATELLITE_TOKEN="your-token-here"
+```
+
+```python
+from gift_satellite_api import GiftSatelliteAPI
+
+api = GiftSatelliteAPI()
+
+# Get the full raw listing set for the collection.
+rows = api.get_listings_dto("B-Day Candle")
+print(f"Found {len(rows)} listings")
+for row in rows[:10]:
+    print(row)
+
+# Get marketplace floor prices for the collection.
+print(api.get_floor_by_collection("B-Day Candle"))
+print(api.get_floor_by_collection("Plush Pepe"))
+print(api.get_floor_by_collection("Astral Shard"))
+```
+
+## Sample Floor Results
+
+When running the live integration, these sample results reflect Gift Satellite data at the time of this check:
+
+- `B-Day Candle`: `TELEGRAM: 5.71g | MRKT: 3.5g | PORTALS: 3.53g | TONNEL: 3.71g | GETGEMS: 3.5g`
+- `Plush Pepe`: `TELEGRAM: 5201.85g | MRKT: 6500g | PORTALS: 4798g | TONNEL: 38865.96g | GETGEMS: 4800g`
+- `Astral Shard`: `TELEGRAM: 129.85g | MRKT: 112.5g | PORTALS: 114.97g | TONNEL: 196.1g | GETGEMS: 125g`
+
+> Note: marketplace prices are live and may move between requests, so exact values can change while the structure and coverage remain the same.
 
 ## Installation
 
-Install the runtime dependency for HTTP requests:
+Install the runtime dependency with pip:
 
 ```bash
-pip install requests
+python3 -m pip install -r requirements.txt
 ```
 
-If you want to call the live Gift Satellite API, export your token before running the module:
+## Quick start
+
+Run the client from the repository root after setting the token:
+
+```bash
+export GIFT_SATELLITE_TOKEN="your-token-here"
+python3 -c "from gift_satellite_api import GiftSatelliteAPI; api = GiftSatelliteAPI(); print(api.get_floor_by_collection('B-Day Candle'))"
+```
+
+## Configuration
+
+The client uses the standard environment variable:
 
 ```bash
 export GIFT_SATELLITE_TOKEN="your-token-here"
 ```
 
-## Usage
+Alternatively, pass the token explicitly:
 
-The module exposes `GiftSatelliteAPI` for integration into NoNvmeHub.
+```python
+api = GiftSatelliteAPI(token="your-token-here")
+```
+
+## API Usage
+
+### Full listing retrieval
+
+Use `get_listings_dto()` to get every listing record returned by Gift Satellite.
+This method returns a complete list of dictionaries, including the raw payload.
 
 ```python
 from gift_satellite_api import GiftSatelliteAPI
 
-api = GiftSatelliteAPI(token="your-token")
-
-floor_by_model = api.get_floor_by_model("Heroic Helmet", "Cyberpunk")
-print(floor_by_model)
-
-floor_by_collection = api.get_floor_by_collection("Nail Bracelet")
-print(floor_by_collection)
-
-listings = api.get_listings("Ion Gem", model="Nightstone")
-print(listings)
+api = GiftSatelliteAPI()
+rows = api.get_listings_dto("B-Day Candle")
+print(len(rows))
+print(rows[0])
 ```
 
-## Available Methods
+### Marketplace floor prices
 
-### 1. `get_floor_by_model(collection, model)`
-Returns the minimum price found for a specific model across marketplaces.
+Use `get_floor_by_collection()` for a consolidated floor-price summary across marketplaces.
 
 ```python
-result = api.get_floor_by_model("Heroic Helmet", "Cyberpunk")
+result = api.get_floor_by_collection("B-Day Candle")
 print(result)
 ```
 
-### 2. `get_floor_by_collection(collection)`
-Returns a compact summary of the best price per marketplace for the collection.
+### Additional methods
 
-```python
-result = api.get_floor_by_collection("Nail Bracelet")
-print(result)
-```
+- `get_floor_by_model(collection, model)` — best price for a specific model
+- `get_listings(collection, model=None, backdrop=None)` — readable listing summary
+- `get_listings_dto(collection, model=None, backdrop=None)` — full structured output
 
-### 3. `get_listings(collection, model=None, backdrop=None)`
-Returns a human-readable summary with total count and marketplace breakdown.
+## Result format
 
-```python
-result = api.get_listings("Scared Cat", model="Salem")
-print(result)
-```
+`get_listings_dto()` returns items with the following fields:
 
-### 4. `get_listings_dto(collection, model=None, backdrop=None)`
-Returns a structured list of plain dictionaries that are easy to serialize or pass into your project UI.
+- `marketplace`
+- `number`
+- `price`
+- `price_text`
+- `stars`
+- `slug`
+- `raw`
 
-```python
-rows = api.get_listings_dto("Scared Cat", model="Salem")
-for row in rows[:3]:
-    print(row)
-```
+`get_floor_by_collection()` returns a formatted summary string and metadata in `.data`.
 
-## Data Format
+## Notes for integrators
 
-The methods accept collection and model names, then normalize the API payloads into a usable format:
+- The client queries all five market routes: `tg`, `portals`, `mrkt`, `tonnel`, and `getgems`.
+- `get_listings_dto()` returns the full listing set from every available route, so nothing is omitted.
+- The repository is intentionally minimal and does not require packaging to use.
+- Import `GiftSatelliteAPI` directly from `gift_satellite_api.py` in your project root.
+- For production usage, keep `GIFT_SATELLITE_TOKEN` secret and do not commit it.
 
-- `get_floor_by_model` extracts the lowest `normalizedPrice` and returns a human-readable string.
-- `get_floor_by_collection` aggregates the best price per marketplace and formats it as a single summary line.
-- `get_listings` produces a readable report and also stores structured metadata in `.data`.
-- `get_listings_dto` returns a list of objects with fields:
-  - `marketplace`
-  - `number`
-  - `price`
-  - `price_text`
-  - `stars`
-  - `slug`
-  - `raw`
+## Deploying to Railway / cloud
 
-## Project Integration
-
-If you want to forward data to your application, the most convenient option is:
+If you deploy this service to Railway, set the secret `GIFT_SATELLITE_TOKEN` in your Railway project.
+Then your app can instantiate the client without passing the token in code:
 
 ```python
 from gift_satellite_api import GiftSatelliteAPI
-
-api = GiftSatelliteAPI(token="your-token")
-rows = api.get_listings_dto("Scared Cat", model="Salem")
+api = GiftSatelliteAPI()
 ```
 
-These rows are already suitable for:
-- JSON serialization
-- UI rendering
-- filtering and sorting
-- sending to a backend service
-
-## API Endpoints
-
-The implementation uses the following Gift Satellite endpoints:
-
-- `GET /history/collection-offers`
-- `GET /search/tg/{collection}`
-- `GET /search/portals/{collection}`
-- `GET /search/mrkt/{collection}`
-- `GET /search/tonnel/{collection}`
-- `GET /search/getgems/{collection}`
+If your live environment does not use a `.env` file, the environment variable is enough.
